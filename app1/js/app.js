@@ -5,6 +5,7 @@ angular.module('myApp', [
         'ngRoute',
         'btford.socket-io'
     ])
+
     .config(['$routeProvider', function($routeProvider) {
         $routeProvider.when('/list', {templateUrl: 'templates/list.html', controller: 'ListController'});
         $routeProvider.when('/new', {templateUrl: 'templates/detail.html', controller: 'CreateController'});
@@ -12,27 +13,34 @@ angular.module('myApp', [
         $routeProvider.otherwise({redirectTo: '/list'});
     }])
 
-    .value('version', '0.1')
+    .value('app-version', '0.1')
 
-// create and register a uuid service
-
+    // create and register a uuid service
     .service ( 'uuid', [ function () {
 
-    return {
+        return {
 
-        newUUID: function () {
+            newUUID: function () {
 
-            function _p8(s) {
-                var p = (Math.random().toString(16)+"000000000").substr(2,8);
-                return s ? "-" + p.substr(0,4) + "-" + p.substr(4,4) : p ;
+                function _p8(s) {
+                    var p = (Math.random().toString(16)+"000000000").substr(2,8);
+                    return s ? "-" + p.substr(0,4) + "-" + p.substr(4,4) : p ;
+                }
+
+                return _p8() + _p8(true) + _p8(true) + _p8();
             }
-
-            return _p8() + _p8(true) + _p8(true) + _p8();
         }
-    }
-}])
+    }])
 
-    .controller( 'ListController', [ '$scope', 'socket', function ( $scope, socket ) {
+    .controller ( 'mainController', [ '$scope', 'app-version', function ( $scope,  app_version ) {
+
+        this.appVersion = app_version;
+    }])
+
+    .controller ( 'ListController', [ '$scope', 'socket', function ( $scope, socket ) {
+
+        var Cntrl = {};
+        $scope.Cntrl = Cntrl;
 
         // get users list from the server
         socket.emit ( 'getAllUsers', function ( err, data ) {
@@ -46,7 +54,7 @@ angular.module('myApp', [
 
                 console.log ( "getAllUsers callback: ", data );
 
-                $scope.users = data;
+                Cntrl.users = data;
             }
         });
 
@@ -55,7 +63,7 @@ angular.module('myApp', [
             console.log ( "userDeleted: ", data );
 
             // update $scope.users
-            $scope.users = window._.filter ( $scope.users, function ( user ) {
+            Cntrl.users = window._.filter ( Cntrl.users, function ( user ) {
 
                 return user._id !== data._id;
             });
@@ -66,7 +74,7 @@ angular.module('myApp', [
             console.log ( "newUserAdded: ", data );
 
             // update $scope.users
-            $scope.users.push ( data );
+            Cntrl.users.push ( data );
         });
 
         socket.on ( 'userUpdated', function ( data ) {
@@ -74,21 +82,24 @@ angular.module('myApp', [
             console.log ( "userUpdated: ", data );
 
             // update $scope.users
-            var ix = window._.findIndex ( $scope.users, function ( user ) {
+            var ix = window._.findIndex ( Cntrl.users, function ( user ) {
 
                 return user._id === data._id;
             });
 
-            $scope.users [ ix ] = data;
+            Cntrl.users [ ix ] = data;
         });
     }])
 
-    .controller( 'CreateController', [ '$scope', '$location', 'socket', 'uuid', function ( $scope, $location, socket ) {
+    .controller ( 'CreateController', [ '$scope', '$location', 'socket', 'uuid', function ( $scope, $location, socket ) {
 
-        $scope.save = function () {
+        var Cntrl = {};
+        $scope.Cntrl = Cntrl;
+
+        Cntrl.save = function () {
 
             // send the new user details to the server to add
-            socket.emit ( 'addNewUser', $scope.user,  function ( err ) {
+            socket.emit ( 'addNewUser', Cntrl.user,  function ( err ) {
 
                 if ( err ) {
 
@@ -104,9 +115,10 @@ angular.module('myApp', [
         };
     }])
 
-    .controller( 'EditController', [ '$scope', '$location', '$routeParams', 'socket', function ( $scope, $location, $routeParams, socket ) {
+    .controller ( 'EditController', [ '$scope', '$location', '$routeParams', 'socket', function ( $scope, $location, $routeParams, socket ) {
 
-        var state = "Editing";
+        var Cntrl = {};
+        $scope.Cntrl = Cntrl;
 
         // get user from the server
         socket.emit ( 'getUser', { _id: $routeParams.userId },  function ( err, data ) {
@@ -119,14 +131,14 @@ angular.module('myApp', [
             else {
 
                 console.log ( "getUser callback: ", data );
-                $scope.user = data;
+                Cntrl.user = data;
             }
         });
 
-        $scope.save = function () {
+        Cntrl.save = function () {
 
             // send the updated user details to the server to add
-            socket.emit ( 'updateUser', $scope.user,  function ( err ) {
+            socket.emit ( 'updateUser', Cntrl.user,  function ( err ) {
 
                 if ( err ) {
 
@@ -141,10 +153,10 @@ angular.module('myApp', [
             });
         };
 
-        $scope.destroy = function () {
+        Cntrl.destroy = function () {
 
             // send the user details to the server to delete
-            socket.emit ( 'deleteUser', $scope.user, function ( err ) {
+            socket.emit ( 'deleteUser', Cntrl.user, function ( err ) {
 
                 if ( err ) {
 

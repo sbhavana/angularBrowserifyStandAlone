@@ -11,11 +11,10 @@
             <th>Phone</th>
             <th>Id</th>
             <th><a href="#/new">Add New User</a></th>
-            <th>Users: {{name}}</th>
         </tr>
         </thead>
         <tbody>
-        <tr ng-repeat="user in users">
+        <tr ng-repeat="user in Cntrl.users">
             <td>{{user.name}}</td>
             <td>{{user.email}}</td>
             <td>{{user.phone}}</td>
