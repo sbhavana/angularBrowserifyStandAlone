@@ -4,42 +4,47 @@
 
 describe('my app', function() {
 
-  beforeEach(function() {
-    browser().navigateTo('app/index.html');
-  });
-
-
-  it('should automatically redirect to /view1 when location hash/fragment is empty', function() {
-    expect(browser().location().url()).toBe("/view1");
-  });
-
-
-  describe('view1', function() {
-
     beforeEach(function() {
-      browser().navigateTo('#/view1');
+        browser().navigateTo('app/index.html');
+    });
+
+    afterEach ( function () {
+
+        pause ();
+    });
+
+    it ('should automatically redirect to /list when location hash/fragment is empty', function() {
+
+        expect(browser().location().url()).toBe("/list");
     });
 
 
-    it('should render view1 when user navigates to /view1', function() {
-      expect(element('[ng-view] p:first').text()).
-        toMatch(/partial for view 1/);
+    describe('list', function() {
+
+        beforeEach(function() {
+
+            browser().navigateTo('#/list');
+        });
+
+        it ( 'should navigate to /new when adding new user is clicked', function () {
+
+            element("a:contains('Add New User')").click();
+            expect(browser().location().url()).toBe('/new');
+        });
     });
 
-  });
+    describe('new', function() {
 
+        beforeEach(function() {
 
-  describe('view2', function() {
+            browser().navigateTo('#/new');
+        });
 
-    beforeEach(function() {
-      browser().navigateTo('#/view2');
+        it ( 'should navigate to /list when Cancel is clicked', function () {
+
+            element("a:contains('Cancel')" ).click();
+            expect(browser().location().url()).toBe('/list');
+        });
     });
 
-
-    it('should render view2 when user navigates to /view2', function() {
-      expect(element('[ng-view] p:first').text()).
-        toMatch(/partial for view 2/);
-    });
-
-  });
 });
