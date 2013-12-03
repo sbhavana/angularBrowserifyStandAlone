@@ -13,90 +13,92 @@ app.use(express.static(__dirname + '/app'));
 
 io.on('connection', function (socket) {
 
-    socket.on('newUser', function (data) {
+    socket.on('addNewUser', function (data, callback) {
 
-        console.log( "newUser: ", data);
+        console.log( "newUser: ", data );
         db.collection ( 'Users' ). insert ( data, function ( err ) {
 
             if ( err ) {
 
-                socket.emit ( 'error', err );
+                callback ( err, null );
             }
 
             else {
 
-                io.sockets.emit ( 'newUser', data );
+                callback ( null, data );
+                socket.broadcast.emit('newUserAdded', data );
             }
         });
     });
 
-    socket.on('updateUser', function (data) {
+    socket.on('updateUser', function ( data, callback ) {
 
-        console.log( "updateUser: ", data);
+        console.log( "updateUser: ", data );
         data._id =  db.ObjectId(data._id);
         db.collection ( 'Users' ). save ( data, function ( err ) {
 
             if ( err ) {
 
-                socket.emit ( 'error', err );
+                callback ( err, null );
             }
 
             else {
 
-                io.sockets.emit ( 'updateUser', data );
+                callback ( null, data );
+                socket.broadcast.emit('userUpdated', data );
             }
         });
     });
 
-    socket.on('deleteUser', function (data) {
+    socket.on('deleteUser', function ( data, callback ) {
 
-        console.log( "deleteUser: ", data);
+        console.log( "deleteUser: ", data );
 
         db.collection ( 'Users' ). remove ( { _id: db.ObjectId(data._id) }, function ( err ) {
 
             if ( err ) {
 
-                socket.emit ( 'error', err );
+                callback ( err, null );
             }
 
             else {
 
-                io.sockets.emit ( 'deleteUser', data );
+                callback ( null, data );
+                socket.broadcast.emit('userDeleted', data );
             }
         });
     });
 
-    socket.on('getAllUsers', function () {
+    socket.on('getAllUsers', function ( data, callback ) {
 
-        console.log( "getAllUsers");
-        db.collection ( 'Users' ). find ( function ( err, data ) {
+        console.log( "getAllUsers " );
+        db.collection ( 'Users' ). find ( function ( err, data1 ) {
 
             if ( err ) {
 
-                socket.emit ( 'error', err );
+                callback ( err, null );
             }
 
             else {
 
-                io.sockets.emit ( 'getAllUsers', data );
+                callback ( null, data1 );
             }
         });
     });
 
-    socket.on('getUser', function ( data ) {
+    socket.on('getUser', function ( data, callback ) {
 
         console.log( "getUser: ", data );
         db.collection ( 'Users' ). find ({ "_id": db.ObjectId(data._id) }, function ( err, data ) {
 
             if ( err ) {
 
-                socket.emit ( 'error', err );
+                callback ( err, null );
             }
 
             else {
 
-                console.log ( data );
-                socket.emit ( 'getUser', data [ 0 ] );
+                callback ( null, data [ 0 ] );
             }
         });
     });
