@@ -67,6 +67,7 @@ var createSocketBackendMock = function ( $rootScope, $timeout ) {
         eventHandlers [ event ] = callback;
     };
 
+    // mocking the receipt of an event by backend
     socketBackend.onEvent = function ( event, data ) {
 
         return {
@@ -78,11 +79,17 @@ var createSocketBackendMock = function ( $rootScope, $timeout ) {
         };
     };
 
+    // mocking the emitting of an event by backend
     socketBackend.emitEvent = function ( event, data ) {
 
         $rootScope.$apply ( function () {
             $timeout ( function () {
-                eventHandlers [ event ] ( data ) },  0 );
+
+                if ( eventHandlers [ event ] ) {
+
+                    eventHandlers [ event ] ( data );
+                }
+            },  0 );
         });
     };
 

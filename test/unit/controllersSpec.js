@@ -33,8 +33,9 @@ describe('myApp Controllers', function(){
 
         var scope;
 
-        beforeEach ( inject ( function ( $rootScope ) {
+        beforeEach ( inject ( function ( $rootScope, $location ) {
 
+            $location.path ( '/list' );
             scope = $rootScope.$new();
         }));
 
@@ -93,6 +94,34 @@ describe('myApp Controllers', function(){
             expect(scope.Cntrl.users.length).toBe(3);
         }));
 
+        it ( 'should not change browser location on getting user list from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getAllUsers' ).respond ( [
+                {
+                    "name": "John",
+                    "email": "john@gmail.com",
+                    "phone": 111,
+                    "_id": 1
+                },
+                {
+                    "name": "Mary",
+                    "email": "mary@gmail.com",
+                    "phone": 222,
+                    "_id": 2
+                },
+                {
+                    "name": "Sara",
+                    "email": "sara@gmail.com",
+                    "phone": 333,
+                    "_id": 3
+                }
+            ]);
+            var ctrl = $controller ( 'ListController', { $scope: scope, socket: socketBackend } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/list' );
+        } ) );
+
         it ( 'should not show deleted user data on getting a userDeleted event from the backend', inject ( function ( $controller, $timeout ) {
 
             socketBackend.onEvent ( 'getAllUsers' ).respond ( [
@@ -141,6 +170,43 @@ describe('myApp Controllers', function(){
             });
         }));
 
+        it ( 'should not change browser location after updating the list on userDeleted event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getAllUsers' ).respond ( [
+                {
+                    "name": "John",
+                    "email": "john@gmail.com",
+                    "phone": 111,
+                    "_id": 1
+                },
+                {
+                    "name": "Mary",
+                    "email": "mary@gmail.com",
+                    "phone": 222,
+                    "_id": 2
+                },
+                {
+                    "name": "Sara",
+                    "email": "sara@gmail.com",
+                    "phone": 333,
+                    "_id": 3
+                }
+            ]);
+            var ctrl = $controller ( 'ListController', { $scope: scope, socket: socketBackend } );
+            $timeout.flush ();
+
+            // fire a 'userDeleted' event from mock backend
+            socketBackend.emitEvent ( 'userDeleted', {
+                "name": "Mary",
+                "email": "mary@gmail.com",
+                "phone": 222,
+                "_id": 2
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/list' );
+        }));
+
         it ( 'should show the additional user data on getting a newUserAdded event from the backend', inject ( function ( $controller, $timeout ) {
 
             socketBackend.onEvent ( 'getAllUsers' ).respond ( [
@@ -181,6 +247,43 @@ describe('myApp Controllers', function(){
                 "phone": 444,
                 "_id": 4
             } );
+        }));
+
+        it ( 'should not change browser location after updating the list on newUserAdded event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getAllUsers' ).respond ( [
+                {
+                    "name": "John",
+                    "email": "john@gmail.com",
+                    "phone": 111,
+                    "_id": 1
+                },
+                {
+                    "name": "Mary",
+                    "email": "mary@gmail.com",
+                    "phone": 222,
+                    "_id": 2
+                },
+                {
+                    "name": "Sara",
+                    "email": "sara@gmail.com",
+                    "phone": 333,
+                    "_id": 3
+                }
+            ]);
+            var ctrl = $controller ( 'ListController', { $scope: scope, socket: socketBackend } );
+            $timeout.flush ();
+
+            // fire a 'userDeleted' event from mock backend
+            socketBackend.emitEvent ( 'newUserAdded', {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/list' );
         }));
 
         it ( 'should show updated user data on getting a userUpdated event from the backend', inject ( function ( $controller, $timeout ) {
@@ -224,14 +327,53 @@ describe('myApp Controllers', function(){
                 "_id": 3
             } );
         }));
+
+        it ( 'should not change browser location after updating the list on userUpdated event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getAllUsers' ).respond ( [
+                {
+                    "name": "John",
+                    "email": "john@gmail.com",
+                    "phone": 111,
+                    "_id": 1
+                },
+                {
+                    "name": "Mary",
+                    "email": "mary@gmail.com",
+                    "phone": 222,
+                    "_id": 2
+                },
+                {
+                    "name": "Sara",
+                    "email": "sara@gmail.com",
+                    "phone": 333,
+                    "_id": 3
+                }
+            ]);
+            var ctrl = $controller ( 'ListController', { $scope: scope, socket: socketBackend } );
+            $timeout.flush ();
+
+            // fire a 'userDeleted' event from mock backend
+            socketBackend.emitEvent ( 'userUpdated', {
+                "name": "Sara",
+                "email": "sara@gmail.com",
+                "phone": 555,
+                "_id": 3
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/list' );
+        }));
+
     });
 
     describe ( 'CreateController', function () {
 
         var scope;
 
-        beforeEach ( inject ( function ( $rootScope ) {
+        beforeEach ( inject ( function ( $rootScope, $location ) {
 
+            $location.path ( '/new' );
             scope = $rootScope.$new();
         }));
 
@@ -277,6 +419,7 @@ describe('myApp Controllers', function(){
                 "_id": 4
             } );
             var ctrl = $controller ( 'CreateController', { $scope: scope, socket: socketBackend } );
+            expect ( $location.path () ).toBe ( '/new' );
 
             // provide new user data
             scope.Cntrl.user = {
@@ -290,26 +433,76 @@ describe('myApp Controllers', function(){
 
             expect ( $location.path () ).toBe ( '/' );
         }));
+
+        it ( 'should not change browser location on getting newUserAdded event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            var ctrl = $controller ( 'CreateController', { $scope: scope, socket: socketBackend } );
+
+            // send newUserAdded event from the backend
+            socketBackend.emitEvent ( 'newUserAdded', {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/new' );
+        } ) );
+
+        it ( 'should not change browser location on getting userUpdated event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            var ctrl = $controller ( 'CreateController', { $scope: scope, socket: socketBackend } );
+
+            // send newUserAdded event from the backend
+            socketBackend.emitEvent ( 'userUpdated', {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/new' );
+        } ) );
+
+        it ( 'should not change browser location on getting userDeleted event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            var ctrl = $controller ( 'CreateController', { $scope: scope, socket: socketBackend } );
+
+            // send newUserAdded event from the backend
+            socketBackend.emitEvent ( 'userDeleted', {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/new' );
+        } ) );
+
     });
 
     describe ( 'EditController', function () {
 
         var scope;
 
-        beforeEach ( inject ( function ( $rootScope ) {
+        beforeEach ( inject ( function ( $rootScope, $location ) {
 
+            $location.path ( '/edit/1');
             scope = $rootScope.$new();
         }));
 
         it ( 'should fetch user data from the backend', inject ( function ( $controller, $timeout ) {
 
-            socketBackend.expectEvent ( 'getUser', { _id: 111 }).respond ( {
+            socketBackend.expectEvent ( 'getUser', { _id: 1 }).respond ( {
                     "name": "John",
                     "email": "john@gmail.com",
                     "phone": 111,
                     "_id": 1
                 });
-            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 111 } } );
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
             expect(scope.Cntrl.user ).toBeUndefined();
             $timeout.flush ();
             expect(scope.Cntrl.user ).toEqual({
@@ -319,6 +512,20 @@ describe('myApp Controllers', function(){
                 "_id": 1
             });
         }));
+
+        it ( 'should not change browser location on getting user data from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.expectEvent ( 'getUser', { _id: 1 }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            });
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/edit/1' );
+        } ) );
 
         it ( 'should ask backend to update a user data on save', inject ( function ( $controller, $timeout ) {
 
@@ -432,5 +639,73 @@ describe('myApp Controllers', function(){
             expect ( $location.path () ).toBe ( '/' );
         }));
 
+        it ( 'should not change browser location on getting newUserAdded event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getUser', { _id: 1 }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            });
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
+            $timeout.flush ();
+
+            // send newUserAdded event from the backend
+            socketBackend.emitEvent ( 'newUserAdded', {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/edit/1' );
+        } ) );
+
+        it ( 'should not change browser location on getting userUpdated event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getUser', { _id: 1 }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            });
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
+            $timeout.flush ();
+
+            // send newUserAdded event from the backend
+            socketBackend.emitEvent ( 'userUpdated', {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 222,
+                "_id": 1
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/edit/1' );
+        } ) );
+
+        it ( 'should not change browser location on getting userDeleted event from backend', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getUser', { _id: 1 }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            });
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
+            $timeout.flush ();
+
+            // send newUserAdded event from the backend
+            socketBackend.emitEvent ( 'userDeleted', {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            } );
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/edit/1' );
+        } ) );
     });
 });
