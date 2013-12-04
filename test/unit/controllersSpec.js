@@ -262,6 +262,34 @@ describe('myApp Controllers', function(){
             scope.Cntrl.save ();
             $timeout.flush ();
         }));
+
+        it ( 'should navigate to / after successful save', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'addNewUser', {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            } ).respond ( {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            } );
+            var ctrl = $controller ( 'CreateController', { $scope: scope, socket: socketBackend } );
+
+            // provide new user data
+            scope.Cntrl.user = {
+                "name": "Richard",
+                "email": "richard@gmail.com",
+                "phone": 444,
+                "_id": 4
+            };
+            scope.Cntrl.save ();
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/' );
+        }));
     });
 
     describe ( 'EditController', function () {
@@ -294,13 +322,13 @@ describe('myApp Controllers', function(){
 
         it ( 'should ask backend to update a user data on save', inject ( function ( $controller, $timeout ) {
 
-            socketBackend.expectEvent ( 'getUser', { _id: 111 }).respond ( {
+            socketBackend.expectEvent ( 'getUser', { _id: 1 }).respond ( {
                 "name": "John",
                 "email": "john@gmail.com",
                 "phone": 111,
                 "_id": 1
             });
-            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 111 } } );
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
             expect(scope.Cntrl.user ).toBeUndefined();
             $timeout.flush ();
 
@@ -320,15 +348,44 @@ describe('myApp Controllers', function(){
             $timeout.flush ();
         }));
 
-        it ( 'should ask backend to delete a user on destroy', inject ( function ( $controller, $timeout ) {
+        it ( 'should navigate to / after successful save', inject ( function ( $controller, $timeout, $location ) {
 
-            socketBackend.expectEvent ( 'getUser', { _id: 111 }).respond ( {
+            socketBackend.onEvent ( 'getUser', { _id: 1 }).respond ( {
                 "name": "John",
                 "email": "john@gmail.com",
                 "phone": 111,
                 "_id": 1
             });
-            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 111 } } );
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
+            $timeout.flush ();
+
+            scope.Cntrl.user.phone = 222;
+            socketBackend.onEvent ( 'updateUser', {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 222,
+                "_id": 1
+            }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 222,
+                "_id": 1
+            });
+            scope.Cntrl.save ();
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/' );
+        }));
+
+        it ( 'should ask backend to delete a user on destroy', inject ( function ( $controller, $timeout ) {
+
+            socketBackend.expectEvent ( 'getUser', { _id: 1 }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            });
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
             expect(scope.Cntrl.user ).toBeUndefined();
             $timeout.flush ();
 
@@ -346,5 +403,34 @@ describe('myApp Controllers', function(){
             scope.Cntrl.destroy ();
             $timeout.flush ();
         }));
+
+        it ( 'should navigate to / after successful destroy', inject ( function ( $controller, $timeout, $location ) {
+
+            socketBackend.onEvent ( 'getUser', { _id: 1 }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            });
+            var ctrl = $controller ( 'EditController', { $scope: scope, socket: socketBackend, $routeParams: { userId: 1 } } );
+            $timeout.flush ();
+
+            socketBackend.onEvent ( 'deleteUser', {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            }).respond ( {
+                "name": "John",
+                "email": "john@gmail.com",
+                "phone": 111,
+                "_id": 1
+            });
+            scope.Cntrl.destroy ();
+            $timeout.flush ();
+
+            expect ( $location.path () ).toBe ( '/' );
+        }));
+
     });
 });
