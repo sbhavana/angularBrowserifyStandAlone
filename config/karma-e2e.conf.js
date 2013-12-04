@@ -8,13 +8,15 @@ module.exports = function(config){
         'test/e2e/**/*.js'
     ],
 
-    autoWatch : false,
+    autoWatch : true,
 
     browsers : ['Chrome'],
 
     frameworks: ['ng-scenario'],
 
-    singleRun : true,
+    singleRun : false,
+
+    urlRoot: '_Karma_',
 
     proxies : {
       '/': 'http://localhost:8000/'
