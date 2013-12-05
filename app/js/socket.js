@@ -16,7 +16,7 @@ angular.module('btford.socket-io', []).
         // expose to provider
         this.$get = function ($rootScope, $timeout) {
 
-            var socket = ioSocket || io.connect();
+            var socket = ioSocket || io.connect('http://localhost:8000');
 
             var asyncAngularify = function (callback) {
                 return function () {

@@ -14,7 +14,7 @@ describe('my app', function() {
         pause ();
     });
 
-    /*it ('should automatically redirect to /list when location hash/fragment is empty', function() {
+    it ('should automatically redirect to /list when location hash/fragment is empty', function() {
 
         expect(browser().location().url()).toBe("/list");
     });
@@ -45,7 +45,7 @@ describe('my app', function() {
             element("a:contains('Cancel')" ).click();
             expect(browser().location().url()).toBe('/list');
         });
-    });       */
+    });
 
     it ( 'adding a new user e2e scenario', function () {
 
