@@ -89,7 +89,15 @@ angular.module('myApp', [
                 return user._id === data._id;
             });
 
-            Cntrl.users [ ix ] = data;
+            if ( ix === -1 ) {
+
+                Cntrl.users [ Cntrl.users.length ] = data;
+            }
+
+            else {
+
+                Cntrl.users [ ix ] = data;
+            }
         });
     }])
 

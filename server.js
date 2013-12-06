@@ -1,6 +1,12 @@
 
 //var passport = require ( 'passport' );
 var fs = require('fs');
+var rkh = require ( './src-server/redisKeyHelper.js' )();
+var redis = require ( "redis" );
+redis.debug_mode = true;
+var redisClient = redis.createClient ();
+var EXPIRE_SECONDS = 1000;
+
 var db = require ( 'mongojs' ).connect ( 'mongodb://localhost' );
 var express = require('express');
 var app = express ();
@@ -54,8 +60,106 @@ sessionSockets.on('connection', function (err, socket, session ) {
         console.log ( "Socket handshake data: ", socket.handshake );
     }
 
-    socket.on('addNewUser', function (data, callback) {
+    var handleUpdate = function ( data, callback ) {
 
+        console.log( "updateUser: ", data );
+        var docKey = rkh.generateDocKey ( 'Test', 'Users', data._id );
+
+        // try to set lock::docKey
+        redisClient.setnx ( "lock::" + docKey, "1", function ( err, res ) {
+
+            if ( err ) {
+
+                callback ( err, null );
+            }
+
+            else {
+
+                // if not able to set, put this request in queue
+                if ( res === 0 ) {
+
+                    var req = {
+
+                        command: "Update",
+                        data: data,
+                        callback: callback
+                    };
+
+                    console.log ( "Queuing request: ", req );
+                    redisClient.rpush ( "wq::" + docKey, JSON.stringify ( req ) );
+                }
+
+                // else
+                else {
+
+                    data._id = db.ObjectId ( data._id );
+
+                    // update mongoDB
+                    db.collection ( 'Users' ). save ( data, function ( err ) {
+
+                        if ( err ) {
+
+                            callback ( err, null );
+                        }
+
+                        else {
+
+                            // update redis key value and expiration
+                            redisClient.setex ( docKey, EXPIRE_SECONDS, JSON.stringify ( data ) );
+
+                            callback ( null, data );
+                            socket.broadcast.emit ( 'userUpdated', data );
+
+                            // check the work queue
+                            redisClient.lpop ( "wq::" + docKey, function ( err, res ) {
+
+                                if ( err ) {
+
+                                    console.log ( err );
+                                }
+
+                                else {
+
+                                    // if an item present, then process it
+                                    if ( res ) {
+
+                                        // parse the res into a req object
+                                        var req = JSON.parse ( res );
+
+                                        console.log ( "pending request: ", req );
+                                        switch ( req.command ) {
+
+                                            case "Update": {
+
+                                                handleUpdate ( req.data, req.callback );
+                                            }
+                                                break;
+
+                                            case "Delete": {
+
+                                                handleDelete ( req.data, req.callback );
+                                            }
+                                                break;
+                                        }
+                                    }
+
+                                    // else, delete the lock::docKey
+                                    else {
+
+                                        redisClient.del ( "lock::" + docKey );
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        });
+    };
+
+    var handleNew = function ( data, callback ) {
+
+        console.log ( "Callback: ", callback );
         console.log( "newUser: ", data );
         db.collection ( 'Users' ). insert ( data, function ( err ) {
 
@@ -66,48 +170,92 @@ sessionSockets.on('connection', function (err, socket, session ) {
 
             else {
 
+                console.log ( "inserted doc: ", data );
+                // create a redis key for the new document
+                var docKey = rkh.generateDocKey ( 'Test', 'Users', data._id );
+
+                // add this key-value and expiration to redis DB
+                redisClient.setex ( docKey, EXPIRE_SECONDS, JSON.stringify ( data ) );
+
                 callback ( null, data );
                 socket.broadcast.emit('newUserAdded', data );
             }
         });
+    };
+
+    var handleDelete = function ( data, callback ) {
+
+        console.log( "deleteUser: ", data );
+
+        var docKey = rkh.generateDocKey ( 'Test', 'Users', data._id );
+
+        // try to set lock::docKey
+        redisClient.setnx ( "lock::" + docKey, "1", function ( err, res ) {
+
+            if ( err ) {
+
+                callback ( err, null );
+            }
+
+            else {
+
+                console.log ( "response from setnx ", res );
+                // if not able to set, put this request in queue
+                if ( res === 0 ) {
+
+                    var req = {
+
+                        command: "Delete",
+                        data: data,
+                        callback: callback
+                    };
+
+                    // prepend this request to he work queue
+                    redisClient.lpush ( "wq::" + docKey, JSON.stringify ( req ) );
+                }
+
+                // else
+                else {
+
+                    // update mongoDB
+                    db.collection ( 'Users' ). remove ( { _id: db.ObjectId ( data._id ) }, function ( err ) {
+
+                        if ( err ) {
+
+                            callback ( err, null );
+                        }
+
+                        else {
+
+                            // delete redis key value
+                            redisClient.del ( docKey );
+                            // delete the work queue
+                            redisClient.del ( "wq::" + docKey );
+                            // delete the lock::docKey
+                            redisClient.del ( "lock::" + docKey );
+
+                            callback ( null, data );
+                            socket.broadcast.emit('userDeleted', data );
+                        }
+                    });
+                }
+            }
+        });
+    };
+
+    socket.on('addNewUser', function (data, callback) {
+
+        handleNew ( data, callback );
     });
 
     socket.on('updateUser', function ( data, callback ) {
 
-        console.log( "updateUser: ", data );
-        data._id =  db.ObjectId(data._id);
-        db.collection ( 'Users' ). save ( data, function ( err ) {
-
-            if ( err ) {
-
-                callback ( err, null );
-            }
-
-            else {
-
-                callback ( null, data );
-                socket.broadcast.emit('userUpdated', data );
-            }
-        });
+        handleUpdate ( data, callback );
     });
 
     socket.on('deleteUser', function ( data, callback ) {
 
-        console.log( "deleteUser: ", data );
-
-        db.collection ( 'Users' ). remove ( { _id: db.ObjectId(data._id) }, function ( err ) {
-
-            if ( err ) {
-
-                callback ( err, null );
-            }
-
-            else {
-
-                callback ( null, data );
-                socket.broadcast.emit('userDeleted', data );
-            }
-        });
+        handleDelete ( data, callback );
     });
 
     socket.on('getAllUsers', function ( data, callback ) {
@@ -129,17 +277,45 @@ sessionSockets.on('connection', function (err, socket, session ) {
 
     socket.on('getUser', function ( data, callback ) {
 
-        console.log( "getUser: ", data );
-        db.collection ( 'Users' ). find ({ "_id": db.ObjectId(data._id) }, function ( err, data ) {
+        console.log( "getUser: ", data._id );
+        var docKey = rkh.generateDocKey ( 'Test', 'Users', data._id );
+
+        // first try the redis cache
+        redisClient.get ( docKey, function ( err, res ) {
 
             if ( err ) {
 
-                callback ( err, null );
+                console.log ( err );
             }
 
             else {
 
-                callback ( null, data [ 0 ] );
+                if ( res ) {
+
+                    console.log ( "Received doc from cache: ", res );
+                    callback ( null, JSON.parse ( res ) );
+                }
+
+                else {
+
+                    // go to mongo DB
+                    db.collection ( 'Users' ). find ({ "_id": db.ObjectId ( data._id ) }, function ( err, data ) {
+
+                        if ( err ) {
+
+                            callback ( err, null );
+                        }
+
+                        else {
+
+                            console.log ( "Putting in cache: ", data );
+                            // add this key-value and expiration to redis DB
+                            redisClient.setex ( docKey, EXPIRE_SECONDS, JSON.stringify ( data ) );
+
+                            callback ( null, data [ 0 ] );
+                        }
+                    });
+                }
             }
         });
     });
