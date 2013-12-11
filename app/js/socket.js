@@ -34,6 +34,8 @@ angular.module('btford.socket-io', []).
             var wrappedSocket = {
 
                 on: function (eventName, callback) {
+
+                    //console.log ( "registering callback for event: ", eventName );
                     socket.on(eventName, asyncAngularify ( callback ));
                 },
 
@@ -58,9 +60,9 @@ angular.module('btford.socket-io', []).
                     }
                 },
 
-                removeListener: function () {
-                    var args = arguments;
-                    return socket.removeListener.apply(socket, args);
+                removeListener: function ( eventName ) {
+                    //console.log ( "de-registering callback for event: ", eventName );
+                    return socket.removeAllListeners.apply ( socket, [ eventName ] );
                 },
 
                 // when socket.on('someEvent', fn (data) { ... }),

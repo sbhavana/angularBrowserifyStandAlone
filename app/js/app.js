@@ -99,6 +99,13 @@ angular.module('myApp', [
                 Cntrl.users [ ix ] = data;
             }
         });
+
+        $scope.$on ( '$destroy', function () {
+
+            socket.removeListener ( 'newUserAdded' );
+            socket.removeListener ( 'userUpdated' );
+            socket.removeListener ( 'userDeleted' );
+        })
     }])
 
     .controller ( 'CreateController', [ '$scope', '$location', 'socket', 'uuid', function ( $scope, $location, socket ) {
