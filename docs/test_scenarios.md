@@ -1,4 +1,4 @@
-// Client-action scenarios
+#Client-action scenarios
 1. Scenario: A 'Create' action in one client gets advertised to another passive client
 2. Scenario: An 'Update' action in one client gets advertised to another passive client
 3. Scenario: An 'Delete' action in one client gets advertised to another passive client
@@ -7,7 +7,7 @@
 5. Scenario: Multiple simultaneous 'Update's on same document by multiple different clients result in they being applied in random order.
 6. Scenario: Multiple simultaneous 'Delete's on same document by multiple different clients result in successful deletion of the document and equivalent number of notifications being generated.
 
-// Lock Scenarios
+#Lock Scenarios
 7. Scenario: Lock expiry event should get generated in order to service pending write requests on a document whose lock has been artificially held by an outside redis client.
 8. Scenario: Long Poll Timer should fire up in order to service pending write request on a document because it fails to get lock del/expired events from the redis server and/or a new write request
 from a client.
