@@ -8,8 +8,13 @@ var redis = require ( "redis" );
 //redis.debug_mode = true;
 var redisClient = redis.createClient ();
 var redisSubClient = redis.createClient ();
-var EXPIRE_SECONDS = 1000;
-
+// DOCKEY_EXPIRE_SECONDS should be a very large value so that these keys get evicted in LRU fashion
+// than by being expired by redis
+var DOCKEY_EXPIRE_SECONDS = 1000;
+// LONG_POLL_INTERVAL_MSECS is guided by the time within which we would like the client waiting on his write request to get a response
+var LONG_POLL_INTERVAL_MSECS = 5000;
+// LOCK_EXPIRY_SECONDS is guided by the maximum time within which a server is expected to yield the lock
+var LOCK_EXPIRY_SECONDS = 4;
 var db = require ( 'mongojs' ).connect ( 'mongodb://localhost' );
 var express = require('express');
 var app = express ();
@@ -68,6 +73,11 @@ redisSubClient.on ( "message", function ( channel, message ) {
         var lockKey = channelParts [ 1 ];
 
         // if the lockKey was deleted or expired
+        // TODO: What about the lock being evicted ??
+        // We don't want the lock keys to be evicted under low-memory conditions by redis,
+        // so should have a larger sampling size in redis,
+        // OR, we can keep the lock keys in a separate DB of redis which does not employ
+        // LRU eviction.
         if ( message === 'del' || message === 'expired' ) {
 
             serviceWQ ( lockKey.substr ( 5 ) );
@@ -82,7 +92,7 @@ var serviceWQ = function ( docKey ) {
     redisSubClient.subscribe ( "__keyspace@0__:" + lockKey );
 
     // try to set lock_docKey
-    redisClient.set ( lockKey, "1", "EX", 60000, "NX" , function ( err, res ) {
+    redisClient.set ( lockKey, "1", "EX", LOCK_EXPIRY_SECONDS, "NX" , function ( err, res ) {
 
         if ( err ) {
 
@@ -96,36 +106,49 @@ var serviceWQ = function ( docKey ) {
 
                 // got the lock
                 console.log ( "got the lock: ", lockKey );
-
                 redisSubClient.unsubscribe ( "__keyspace@0__:" + lockKey );
 
-                // clone the current work queue for this docKey
-                // and reset the work queue to an empty queue
-                var reqQ = _.cloneDeep ( workQueue [ docKey ] );
-                delete workQueue [ docKey ];
+                // cancel the periodic long poll for the current batch of pending requests
+                if ( workQueue [ docKey ] && workQueue [ docKey ].length ) {
 
-                // process the cloned request queue
-                var stasks = [];
+                    clearInterval ( workQueue [ docKey ] [ 0 ].longPollId );
 
-                _.forEach ( reqQ, function ( req, ix ) {
+                    // clone the current work queue for this docKey
+                    // and reset the work queue to an empty queue
+                    var reqQ = _.cloneDeep ( workQueue [ docKey ] );
+                    delete workQueue [ docKey ];
 
-                    stasks [ ix ] = async.apply ( handleWReq, docKey, req );
-                });
+                    // process the cloned request queue
+                    var stasks = [];
 
-                async.series ( stasks, function ( err ) {
+                    _.forEach ( reqQ, function ( req, ix ) {
 
-                    if ( err ) {
+                        stasks [ ix ] = async.apply ( handleWReq, docKey, req );
+                    });
 
-                        console.log ( "Error while processing write requests on docKey: " + docKey + ", err: " + err );
-                    }
+                    async.series ( stasks, function ( err ) {
+
+                        if ( err ) {
+
+                            console.log ( "Error while processing write requests on docKey: " + docKey + ", err: " + err );
+                        }
+
+                        // free the lock
+                        redisClient.del ( lockKey );
+                    });
+                }
+
+                else {
 
                     // free the lock
                     redisClient.del ( lockKey );
-                });
+                }
             }
 
             // not able to get the lock
             else   {
+
+                console.log ( "didn't get the lock: ", lockKey );
             }
         }
     });
@@ -138,9 +161,12 @@ var queueWReq = function ( docKey, type, data, callback, socketId ) {
         workQueue [ docKey ].push ( { type: type, data: data, callback: callback, socketId: socketId } );
     }
 
+    // adding the first item in the queue
     else {
 
-        workQueue [ docKey ] = [ { type: type, data: data, callback: callback, socketId: socketId } ];
+        // start an interval time
+        var longPollId = setInterval ( serviceWQ, LONG_POLL_INTERVAL_MSECS, docKey );
+        workQueue [ docKey ] = [ { longPollId: longPollId, type: type, data: data, callback: callback, socketId: socketId } ];
     }
 
     serviceWQ ( docKey );
@@ -174,7 +200,7 @@ var handleWReq = function ( docKey, req, cb ) {
                     console.log ( "Got response from the db after update " );
 
                     // update redis key value and expiration
-                    redisClient.set ( docKey, JSON.stringify ( data ), "EX", EXPIRE_SECONDS );
+                    redisClient.set ( docKey, JSON.stringify ( data ), "EX", DOCKEY_EXPIRE_SECONDS );
 
                     // callback the client
                     callback ( null, data );
@@ -273,7 +299,7 @@ sessionSockets.on ( 'connection', function ( err, socket, session ) {
                 var docKey = rkh.generateDocKey ( 'Test', 'Users', data._id );
 
                 // add this key-value and expiration to redis DB
-                redisClient.set ( docKey, JSON.stringify ( data ), "EX", EXPIRE_SECONDS );
+                redisClient.set ( docKey, JSON.stringify ( data ), "EX", DOCKEY_EXPIRE_SECONDS );
 
                 callback ( null, data );
 
@@ -340,7 +366,7 @@ sessionSockets.on ( 'connection', function ( err, socket, session ) {
 
                             console.log ( "Putting in cache: ", data [ 0 ]);
                             // add this key-value and expiration to redis DB
-                            redisClient.setex ( docKey, EXPIRE_SECONDS, JSON.stringify ( data [ 0 ] ) );
+                            redisClient.set ( docKey, JSON.stringify ( data [ 0 ] ), "EX", DOCKEY_EXPIRE_SECONDS );
 
                             callback ( null, data [ 0 ] );
                         }
