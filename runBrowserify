@@ -1,0 +1,6 @@
+ cd src/lib
+ browserify lib.js -s lib -o ../../app/lib.js
+ cd ../../app/js
+ browserify  app.js -o bundle.js
+ cd ../..
+ node server

@@ -184,7 +184,7 @@ var handleWReq = function ( docKey, req, cb ) {
 
             data._id = db.ObjectId ( data._id );
 
-            console.log ( "Going to call update on mongo " );
+            console.log ( "Going to call update on mongo: ", data._id );
 
             // update mongoDB
             db.collection ( 'Users' ). save ( data, function ( err ) {
@@ -197,7 +197,7 @@ var handleWReq = function ( docKey, req, cb ) {
 
                 else {
 
-                    console.log ( "Got response from the db after update " );
+                    console.log ( "Got response from the db after update: ", data._id );
 
                     // update redis key value and expiration
                     redisClient.set ( docKey, JSON.stringify ( data ), "EX", DOCKEY_EXPIRE_SECONDS );

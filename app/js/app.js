@@ -1,9 +1,11 @@
 'use strict';
 
+var socket = require ( './socket' );
+
 // Declare app level module which depends on filters, and services
 angular.module('myApp', [
         'ngRoute',
-        'btford.socket-io'
+        socket.name
     ])
 
     .config(['$routeProvider', function($routeProvider) {
@@ -55,6 +57,8 @@ angular.module('myApp', [
             else {
 
                 console.log ( "getAllUsers callback: ", data );
+
+                console.log ( "isEqual: ", lib.comparator.isEqual ( [1, 2, 3], [1,2, 4]));
 
                 Cntrl.users = data;
 
